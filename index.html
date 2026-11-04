@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SmPlan Premium</title>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <style>
+    :root {
+      --bg-color: #090a0f;
+      --bg-image: none;
+      --bg-overlay-opacity: 0.85;
+      --surface-color: #12151c;
+      --surface-card: #1a1e29;
+      --primary-color: #8ab4f8;
+      --primary-gradient: linear-gradient(135deg, #8ab4f8 0%, #c084fc 100%);
+      --accent-pink: #f28b82;
+      --accent-pink-bg: #412022;
+      --text-color: #f1f3f4;
+      --text-secondary: #9aa0a6;
+      --border-color: #272c3a;
+      --font-family: 'Cairo', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-family); -webkit-tap-highlight-color: transparent; }
+    
+    body { 
+      background-color: var(--bg-color); 
+      background-image: var(--bg-image);
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color: var(--text-color); 
+      font-size: 14px; 
+      display: flex; 
+      flex-direction: column; 
+      height: 100vh; 
+      overflow: hidden; 
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(9, 10, 15, var(--bg-overlay-opacity));
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    header, main, .bottom-bar, .full-modal, .custom-dialog-overlay, .toast, .progress-bar-container, .popup-window {
+      z-index: 1;
+    }
+
+    .progress-bar-container { width: 100%; height: 4px; background: rgba(255,255,255,0.05); }
+    .progress-bar-fill { height: 100%; width: 0%; background: var(--primary-gradient); transition: width 0.4s ease; }
+
+    /* Header */
+    header { background-color: var(--surface-color); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); position: relative; z-index: 100; }
+    .header-right-group { display: flex; align-items: center; gap: 8px; position: relative; }
+    .category-dropdown-btn { display: flex; align-items: center; gap: 6px; font-size: 1.05rem; font-weight: 800; cursor: pointer; background: none; border: none; color: var(--text-color); }
+    .task-count-badge { background: var(--surface-card); color: var(--primary-color); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+    .header-left-actions { display: flex; align-items: center; gap: 4px; position: relative; }
+    .icon-btn { background: none; border: none; color: var(--text-color); padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .icon-btn:active { background-color: var(--surface-card); }
+
+    .xp-badge { background: var(--primary-gradient); color: #000; font-weight: 800; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; margin-left: 6px; }
+
+    /* Search Box */
+    .search-box { display: none; padding: 8px 16px; background: var(--surface-color); border-bottom: 1px solid var(--border-color); z-index: 90; }
+    .search-box.active { display: flex; }
+    .search-input { width: 100%; background: var(--surface-card); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: 20px; color: var(--text-color); outline: none; font-size: 0.88rem; }
+
+    main { flex: 1; overflow-y: auto; padding: 16px; z-index: 1; position: relative; }
+    
+    /* Task Cards */
+    .task-card { 
+      background-color: var(--surface-card); 
+      border-radius: 14px; 
+      padding: 14px; 
+      margin-bottom: 12px; 
+      border: 1px solid var(--border-color); 
+      border-right: 4px solid var(--primary-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      position: relative;
+    }
+    .task-card.priority-high { border-right-color: #f28b82; }
+    .task-card.priority-medium { border-right-color: #fdd663; }
+    .task-card.priority-low { border-right-color: #81c995; }
+    .task-card.completed { opacity: 0.55; border-right-color: #5f6368; }
+
+    .task-main-row { display: flex; align-items: flex-start; gap: 12px; }
+    .task-checkbox { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--primary-color); cursor: pointer; }
+    .task-content { flex: 1; }
+    .task-title { font-size: 0.98rem; font-weight: 700; color: var(--text-color); word-break: break-word; }
+    .task-notes-text { font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; white-space: pre-line; background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+    .task-location-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #88c0d0; background: rgba(136,192,208,0.15); padding: 2px 8px; border-radius: 6px; margin-top: 6px; font-weight: bold; }
+    .task-card.completed .task-title { text-decoration: line-through; color: var(--text-secondary); }
+
+    /* Bottom Bar */
+    .bottom-bar { background-color: var(--surface-color); padding: 10px 16px 16px 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--border-color); z-index: 100; }
+    .quick-input-wrapper { flex: 1; background-color: rgba(0,0,0,0.3); border-radius: 24px; padding: 6px 16px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border-color); }
+    .quick-input { width: 100%; background: none; border: none; color: var(--text-color); font-size: 0.92rem; outline: none; }
+    .fab-add { background: var(--primary-gradient); color: #000; width: 48px; height: 48px; border-radius: 16px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 14px rgba(138,180,248,0.3); }
+
+    /* Dropdown Menus */
+    .dropdown-menu { 
+      position: absolute; top: 48px; 
+      background: #171a21; 
+      border: 1px solid var(--border-color); border-radius: 14px; width: 230px; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.9); z-index: 1000; display: none; 
+      overflow: hidden;
+    }
+    .dropdown-menu.active { display: block; }
+    .dropdown-item { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-size: 0.92rem; border-bottom: 1px solid var(--border-color); }
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item:active { background: rgba(255,255,255,0.12); }
+
+    /* Floating Pop-up Window */
+    .popup-window {
+      position: fixed; bottom: 80px; left: 16px; right: 16px;
+      background: var(--surface-color); border: 1px solid var(--primary-color);
+      border-radius: 16px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      z-index: 500; display: none;
+    }
+    .popup-window.active { display: block; }
+
+    /* Soundscapes Cards Grid */
+    .soundscape-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+    .soundscape-card {
+      background: var(--surface-card); border: 1px solid var(--border-color);
+      border-radius: 14px; padding: 16px; text-align: center; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .soundscape-card.playing { border-color: var(--primary-color); background: rgba(138,180,248,0.1); }
+    .soundscape-icon { font-size: 32px; color: var(--primary-color); }
+
+    /* Fixed Wallpaper Grid - Organized Layout */
+    .wallpaper-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+    .wallpaper-item { 
+      height: 110px; border-radius: 14px; background-size: cover; background-position: center; 
+      position: relative; border: 2px solid var(--border-color); cursor: pointer; overflow: hidden;
+      display: flex; align-items: flex-end; padding: 10px; font-weight: bold; font-size: 0.85rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8); box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .wallpaper-item::before { content:''; position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.7), transparent); }
+    .wallpaper-item span { position: relative; z-index: 1; }
+
+    /* Full Modals */
+    .full-modal { 
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+      background: var(--bg-color); z-index: 800; display: flex; flex-direction: column;
+      opacity: 0; transform: translateY(100%); pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+    .full-modal.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .modal-nav { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); background: var(--surface-color); }
+    .modal-content { flex: 1; padding: 16px; overflow-y: auto; }
+
+    .form-group { margin-bottom: 18px; }
+    .form-label { color: var(--primary-color); font-size: 0.88rem; margin-bottom: 8px; display: block; font-weight: bold; }
+    .form-input, .form-textarea, .form-select { width: 100%; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-color); padding: 12px; font-size: 0.95rem; outline: none; }
+    .form-textarea { resize: none; min-height: 80px; }
+
+    .save-fab { position: fixed; bottom: 20px; left: 20px; background: var(--primary-gradient); color: #000; padding: 12px 28px; border-radius: 14px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 16px rgba(138,180,248,0.4); }
+
+    /* Custom Dialog Overlay */
+    .custom-dialog-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(6px);
+      z-index: 900; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+    }
+    .custom-dialog-overlay.active { opacity: 1; pointer-events: auto; }
+    .custom-dialog-card {
+      background: #171a21; border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 20px; width: 85%; max-width: 340px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+    .dialog-title { font-weight: 800; font-size: 1.05rem; color: var(--primary-color); margin-bottom: 12px; }
+    .dialog-btn-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+    .dialog-btn { background: none; border: none; color: var(--text-color); font-weight: bold; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+    .dialog-btn.primary { background: var(--primary-gradient); color: #000; }
+
+    /* Pomodoro Styles */
+    .pomo-display { text-align: center; font-size: 3.5rem; font-weight: 800; color: var(--primary-color); margin: 15px 0; font-family: monospace; }
+    .pomo-btn-group { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+    .pomo-preset-btn { background: var(--surface-card); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+    .pomo-preset-btn.active { background: var(--primary-gradient); color: #000; border-color: transparent; }
+
+    /* Toast */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--primary-gradient); color: #000; font-weight: 800; padding: 10px 20px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 9999; transition: transform 0.4s ease; font-size: 0.9rem; pointer-events: none; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* SmPlan Premium layer */
+    :root { --bg-color:#f4f7f5; --surface-color:#ffffff; --surface-card:#ffffff; --primary-color:#16865b; --primary-gradient:linear-gradient(135deg,#20a36f 0%,#83d6ad 100%); --accent-pink:#d94b65; --accent-pink-bg:#fde8ed; --text-color:#17251f; --text-secondary:#687970; --border-color:#e1ebe5; --font-family:'Cairo',sans-serif; }
+    body::before { background:rgba(244,247,245,var(--bg-overlay-opacity)); }
+    .task-card,.modal-content>div,.soundscape-card { box-shadow:0 8px 24px rgba(24,70,48,.07); }
+    .dropdown-menu,.custom-dialog-card { background:var(--surface-color); box-shadow:0 14px 36px rgba(20,50,35,.16); }
+    .quick-input-wrapper { background:#f2f7f4; }
+    .xp-badge { color:#fff; }
+    .task-card { animation:smFadeUp .28s ease both; }
+    .full-modal.active { animation:smModalIn .25s ease both; }
+    @keyframes smFadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes smModalIn { from{opacity:.7} to{opacity:1} }
+    body[data-theme="dark"]::before { background:rgba(13,21,17,var(--bg-overlay-opacity)); }
+    body[data-theme="dark"] { --bg-color:#0d1511;--surface-color:#14221a;--surface-card:#1b2b22;--primary-color:#70d6a5;--primary-gradient:linear-gradient(135deg,#249b69,#80ddb0);--text-color:#edf7f0;--text-secondary:#a4b9ad;--border-color:#294234; }
+    body[data-theme="ocean"]::before { background:rgba(238,246,251,var(--bg-overlay-opacity)); }
+    body[data-theme="ocean"] { --bg-color:#eef6fb;--surface-color:#fff;--surface-card:#fff;--primary-color:#247eae;--primary-gradient:linear-gradient(135deg,#247eae,#75c4e8);--text-color:#152b38;--text-secondary:#627b88;--border-color:#d8e8f0; }
+    body[data-theme="violet"]::before { background:rgba(247,244,251,var(--bg-overlay-opacity)); }
+    body[data-theme="violet"] { --bg-color:#f7f4fb;--surface-color:#fff;--surface-card:#fff;--primary-color:#7952b3;--primary-gradient:linear-gradient(135deg,#7952b3,#c1a1ed);--text-color:#2c203b;--text-secondary:#796b88;--border-color:#e8def2; }
+    body[data-theme="rose"]::before { background:rgba(255,245,245,var(--bg-overlay-opacity)); }
+    body[data-theme="rose"] { --bg-color:#fff5f5;--surface-color:#fff;--surface-card:#fff;--primary-color:#c45d72;--primary-gradient:linear-gradient(135deg,#c45d72,#f1a5b4);--text-color:#38232a;--text-secondary:#8b6c74;--border-color:#f1dfe3; }
+    .premium-dashboard { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px; }
+    .metric-card { background:var(--surface-card);border:1px solid var(--border-color);border-radius:16px;padding:14px;box-shadow:0 7px 22px rgba(25,70,48,.06); }
+    .metric-value { font-size:1.55rem;font-weight:800;color:var(--primary-color); }
+    .metric-label { color:var(--text-secondary);font-size:.78rem;font-weight:700; }
+    .dash-progress { height:9px;background:var(--border-color);border-radius:20px;overflow:hidden;margin-top:8px; }
+    .dash-progress>span { display:block;height:100%;background:var(--primary-gradient);border-radius:20px;transition:width .5s ease; }
+    .theme-swatches { display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0 18px; }
+    .theme-swatch { border:2px solid var(--border-color);border-radius:12px;padding:10px 3px;background:var(--surface-card);font-size:.72rem;font-weight:700;color:var(--text-color); }
+    .theme-dot { width:22px;height:22px;border-radius:50%;display:block;margin:0 auto 5px; }
+    .subtask-tree { margin-top:8px;padding-right:10px;border-right:2px solid var(--border-color);display:flex;flex-direction:column;gap:6px; }
+    .subtask-line { display:flex;align-items:center;gap:7px;font-size:.83rem;min-height:28px; }
+    .subtask-line .subtask-name { flex:1;overflow-wrap:anywhere; }
+    .subtask-add { border:0;background:transparent;color:var(--primary-color);font-size:.72rem;font-weight:700;padding:3px 5px; }
+    .due-chip { display:inline-flex;background:rgba(22,134,91,.10);color:var(--primary-color);padding:3px 8px;border-radius:8px;font-size:.72rem;margin-top:6px; }
+    .cloud-status { border-radius:12px;padding:10px;background:var(--surface-card);border:1px solid var(--border-color);font-size:.8rem;margin:12px 0;text-align:right; }
+    .chart-row { display:flex;align-items:center;gap:9px;margin:9px 0;font-size:.78rem; }
+    .chart-track { flex:1;height:9px;border-radius:20px;background:var(--border-color);overflow:hidden; }
+    .chart-fill { height:100%;background:var(--primary-gradient);border-radius:20px; }
+    .premium-section-title { font-weight:800;color:var(--primary-color);margin:14px 0 8px; }
+    @media(min-width:700px){main{max-width:850px;width:100%;margin:0 auto}.bottom-bar{padding-left:max(16px,calc((100% - 818px)/2));padding-right:max(16px,calc((100% - 818px)/2))}}
+
+  </style>
+</head>
+<body onclick="closeAllDropdowns(event)">
+
+  <div class="progress-bar-container">
+    <div class="progress-bar-fill" id="progressBar"></div>
+  </div>
+
+  <div class="toast" id="toastMsg">🔥 إنجاز جديد! أنت بطل!</div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left-actions">
+      <button class="icon-btn" onclick="togglePopupWindow(event)"><span class="material-symbols-outlined" style="color:var(--primary-color);">open_in_new</span></button>
+      <button class="icon-btn" onclick="toggleSearchBox(event)"><span class="material-symbols-outlined">search</span></button>
+      <button class="icon-btn" onclick="toggleOptionsMenu(event)"><span class="material-symbols-outlined">more_vert</span></button>
+      
+      <!-- 3-Dots Dropdown Menu -->
+      <div class="dropdown-menu" id="optionsMenu" style="right: 0; left: auto;" onclick="event.stopPropagation()">
+        <div class="dropdown-item" onclick="openDashboard()"><span>لوحة التحكم والإحصائيات</span><span class="material-symbols-outlined">dashboard</span></div>
+        <div class="dropdown-item" onclick="openWeeklyJournalModal()"><span>مفكرة التأمل الأسبوعي 📖</span><span class="material-symbols-outlined">book</span></div>
+        <div class="dropdown-item" onclick="openSoundscapesModal()"><span>أصوات التركيز المحيطية 🎧</span><span class="material-symbols-outlined">graphic_eq</span></div>
+        <div class="dropdown-item" onclick="openPomodoroModal()"><span>مؤقت التركيز (Pomodoro)</span><span class="material-symbols-outlined">timer</span></div>
+        <div class="dropdown-item" onclick="openHabitTrackerModal()"><span>تتبع العادات اليومية</span><span class="material-symbols-outlined">grid_view</span></div>
+        <div class="dropdown-item" onclick="openMultiAddModal()"><span>إضافة متعددة</span><span class="material-symbols-outlined">post_add</span></div>
+        <div class="dropdown-item" onclick="openWallpapersModal()"><span>خلفيات الشاشة والثيمات</span><span class="material-symbols-outlined">wallpaper</span></div>
+        <div class="dropdown-item" onclick="openGoogleSyncModal()"><span>النسخ الاحتياطي (Gmail)</span><span class="material-symbols-outlined">cloud_upload</span></div>
+        <div class="dropdown-item" onclick="deleteCurrentCategory()"><span style="color:var(--accent-pink);">حذف القائمة الحالية</span><span class="material-symbols-outlined" style="color:var(--accent-pink);">delete_sweep</span></div>
+        <div class="dropdown-item" onclick="exportData()"><span>تصدير ملف JSON</span><span class="material-symbols-outlined">download</span></div>
+        <div class="dropdown-item" onclick="clearAll()"><span style="color:red;">مسح كافة المهام</span><span class="material-symbols-outlined" style="color:red;">delete_forever</span></div>
+      </div>
+    </div>
+
+    <div class="header-right-group">
+      <div class="xp-badge">
+        <span class="material-symbols-outlined" style="font-size:14px;">star</span>
+        <span id="userXP">0 XP</span>
+      </div>
+      <button class="category-dropdown-btn" onclick="toggleCategoryMenu(event)">
+        <span class="material-symbols-outlined">expand_more</span>
+        <span class="task-count-badge" id="categoryCount">0</span>
+        <span id="currentCategoryLabel">غير المنجزة</span>
+      </button>
+      
+      <!-- Categories Menu -->
+      <div class="dropdown-menu" id="categoryMenu" style="right: auto; left: 0;" onclick="event.stopPropagation()">
+        <div id="dynamicCategories"></div>
+        <div class="dropdown-item" style="color:var(--primary-color); font-weight:bold;" onclick="openNewCategoryDialog()">
+          <span>+ إضافة قائمة جديدة</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Energy Filter Selector -->
+  <div style="background:var(--surface-color); padding:8px 16px; border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+    <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:bold;">مستوى طاقتك الآن:</span>
+    <select id="energyFilterSelect" onchange="changeEnergyFilter(this.value)" class="form-select" style="width:auto; padding:4px 10px; font-size:0.8rem; border-radius:12px;">
+      <option value="all">كل المستويات ⚡</option>
+      <option value="high">طاقة عالية 🚀 (مهام صعبة)</option>
+      <option value="medium">طاقة متوسطة ☕ (مهام روتينية)</option>
+      <option value="low">طاقة منخفضة 🌙 (مهام خفيفة)</option>
+    </select>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-box" id="searchBox">
+    <input type="text" class="search-input" id="searchInput" placeholder="ابحث عن مهمة..." oninput="renderTasks()">
+  </div>
+
+  <!-- Task Main List -->
+  <main id="taskListMain"></main>
+
+  <!-- Floating Pop-up Window -->
+  <div class="popup-window" id="popupWindow" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span style="font-weight:bold; color:var(--primary-color);">⚡ الودجت العائم السريع</span>
+      <button class="icon-btn" onclick="togglePopupWindow(event)"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <input type="text" class="form-input" id="popupTaskInput" placeholder="أضف مهمة عاجلة فوراً..." onkeypress="handlePopupTask(event)">
+  </div>
+
+  <!-- Bottom Task Bar -->
+  <div class="bottom-bar">
+    <button class="fab-add" onclick="openNewTaskModal()"><span class="material-symbols-outlined" style="font-size:28px;">add</span></button>
+    <div class="quick-input-wrapper">
+      <input type="text" class="quick-input" id="quickTaskInput" placeholder="مهمه سريعة..." onkeypress="handleQuickTask(event)">
+      <button class="icon-btn" onclick="startSpeech()"><span class="material-symbols-outlined">mic</span></button>
+    </div>
+  </div>
+
+  <!-- Wallpapers Modal - Organized & Direct Storage Picker Added -->
+  <div class="full-modal" id="wallpapersModal">
+    <div class="modal-nav">
+      <button class="icon-btn" onclick="closeModal('wallpapersModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+      <span style="font-weight: 800; font-size: 1.1rem;">خلفيات الشاشة والثيمات</span>
+      <div></div>
+    </div>
+    <div class="modal-content">
+      <div style="margin-bottom:14px;">
+        <label class="form-label">اختيار الثيم:</label>
+        <div class="theme-swatches">
+          <button class="theme-swatch" onclick="setTheme('light')"><span class="theme-dot" style="background:#16865b"></span>أخضر</button>
+          <button class="theme-swatch" onclick="setTheme('dark')"><span class="theme-dot" style="background:#70d6a5"></span>داكن</button>
+          <button class="theme-swatch" onclick="setTheme('ocean')"><span class="theme-dot" style="background:#247eae"></span>أزرق</button>
+          <button class="theme-swatch" onclick="setTheme('violet')"><span class="theme-dot" style="background:#7952b3"></span>بنفسجي</button>
+          <button class="theme-swatch" onclick="setTheme('rose')"><span class="theme-dot" style="background:#c45d72"></span>وردي</button>
+        </div>
+        <label class="form-label">درجة التعتيم (Opacity):</label>
+        <input type="range" id="bgOpacityRange" min="30" max="95" value="85" oninput="changeBgDimming(this.value)" style="width:100%;">
+      </div>
+
+      <!-- Device Storage Direct Image Picker -->
+      <div class="form-group" style="background:var(--surface-card); padding:12px; border-radius:12px; border:1px solid var(--border-color); text-align:center;">
+        <label class="form-label" style="margin-bottom:6px;">اختر صورة من ذاكرة الهاتف 📱:</label>
+        <input type="file" id="deviceImagePicker" accept="image/*" style="display:none;" onchange="handleDeviceImageSelect(event)">
+        <button class="form-input" style="background:var(--primary-gradient); color:#000; font-weight:bold; border:none; cursor:pointer;" onclick="document.getElementById('deviceImagePicker').click()">📁 اختيار صورة من المعرض</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">أو أضف من رابط مباشر:</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" class="form-input" id="customBgUrlInput" placeholder="الصق رابط الصورة هنا (https://...)">
+          <button class="dialog-btn primary" onclick="applyCustomWallpaper()">تطبيق</button>
+        </div>
+      </div>
+
+      <label class="form-label" style="margin-top:10px;">أو اختر خلفية جاهزة:</label>
+      <div class="wallpaper-grid">
+        <div class="wallpaper-item" style="background-image: url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=400&q=80');" onclick="setWallpaper('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=800&q=80')">
+          <span>Scenic Sights 🌺</span>
+        </div>
+        <div class="wallpaper-item" style="background-image: url('https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=400&q=80');" onclick="setWallpaper('https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80')">
+          <span>Pop Art / Anime 🎨</span>
+        </div>
+        <div class="wallpaper-item" style="background-image: url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=400&q=80');" onclick="setWallpaper('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80')">
+          <span>Mountains B&W 🏔️</span>
+        </div>
+        <div class="wallpaper-item" style="background-image: url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=400&q=80');" onclick="setWallpaper('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80')">
+          <span>Neon Lights 💡</span>
+        </div>
+        <div class="wallpaper-item" style="background:#171a21; display:flex; align-items:center; justify-content:center; grid-column: span 2;" onclick="setWallpaper('')">
+          <span>بدون خلفية (افتراضي)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real Gmail Backup & Sync Modal -->
+  <div class="full-modal" id="googleSyncModal">
+    <div class="modal-nav">
+      <button class="icon-btn" onclick="closeModal('googleSyncModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+      <span style="font-weight: 800; font-size: 1.1rem;">النسخ الاحتياطي (Gmail)</span>
+      <div></div>
+    </div>
+    <div class="modal-content" style="text-align:center; padding-top:20px;">
+      <span class="material-symbols-outlined" style="font-size:60px; color:var(--primary-color);">cloud_sync</span>
+      <h3 style="margin:8px 0;">المزامنة السحابية والنسخ الاحتياطي</h3>
+      <p style="color:var(--text-secondary);font-size:.85rem;">سجّل الدخول بنفس الحساب على أجهزتك لمزامنة بياناتك. تظل نسخة الجهاز محفوظة محليًا.</p>
+      <div id="cloudStatus" class="cloud-status">المزامنة غير مفعلة بعد. يلزم إعداد Firebase أولًا.</div>
+      <div class="form-group" style="text-align:right;"><label class="form-label">البريد الإلكتروني:</label><input type="email" class="form-input" id="userEmailInput" placeholder="name@example.com" autocomplete="email"></div>
+      <div class="form-group" style="text-align:right;"><label class="form-label">كلمة المرور:</label><input type="password" class="form-input" id="cloudPasswordInput" placeholder="6 أحرف على الأقل" autocomplete="current-password"></div>
+      <button class="form-input" style="background:var(--primary-gradient);color:#fff;font-weight:bold;border:none;cursor:pointer;margin-bottom:8px;" onclick="cloudSignIn('login')">تسجيل الدخول والمزامنة</button>
+      <button class="form-input" style="background:var(--surface-card);color:var(--text-color);border:1px solid var(--border-color);cursor:pointer;margin-bottom:12px;" onclick="cloudSignIn('signup')">إنشاء حساب جديد</button>
+      <button class="form-input" style="background:var(--surface-card);color:var(--text-color);border:1px solid var(--border-color);cursor:pointer;margin-bottom:8px;" onclick="cloudSyncNow()">مزامنة الآن</button>
+      <button class="form-input" style="background:var(--surface-card);color:var(--text-color);border:1px solid var(--border-color);cursor:pointer;margin-bottom:12px;" onclick="cloudSignOut()">تسجيل الخروج من السحابة</button>
+      <div style="border-top:1px solid var(--border-color);padding-top:14px;margin-top:8px;">
+        <p class="form-label">نسخة احتياطية محلية (تعمل دون إنترنت)</p>
+        <button class="form-input" style="background:var(--primary-gradient);color:#fff;font-weight:bold;border:0;margin-bottom:8px;" onclick="exportData()">تنزيل نسخة JSON</button>
+        <input type="file" id="gmailBackupRestoreFile" accept=".json,application/json" style="display:none" onchange="restoreFromGmailFile(event)">
+        <button class="form-input" style="background:var(--surface-card);color:var(--text-color);border:1px solid var(--border-color);" onclick="document.getElementById('gmailBackupRestoreFile').click()">استعادة نسخة JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Premium Dashboard -->
+  <div class="full-modal" id="dashboardModal">
+    <div class="modal-nav"><button class="icon-btn" onclick="closeModal('dashboardModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem;">لوحة التحكم</span><button class="icon-btn" onclick="renderDashboard()"><span class="material-symbols-outlined">refresh</span></button></div>
+    <div class="modal-content" id="dashboardContent"></div>
+  </div>
+
+  <!-- Weekly Journal Modal -->
+  <div class="full-modal" id="weeklyJournalModal">
+    <div class="modal-nav">
+      <button class="icon-btn" onclick="closeModal('weeklyJournalModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+      <span style="font-weight: 800; font-size: 1.1rem;">مفكرة التأمل والإنجاز الأسبوعي 📖</span>
+      <div></div>
+    </div>
+    <div class="modal-content">
+      <div style="background:var(--surface-card); padding:16px; border-radius:14px; border:1px solid var(--border-color); margin-bottom:18px;">
+        <h3 style="color:var(--primary-color); margin-bottom:6px; font-size:1rem;">📊 ملخص إنجازاتك</h3>
+        <p style="color:var(--text-secondary); font-size:0.88rem;" id="journalStatsText">جاري تحميل الإحصاءات...</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">خاطرتك الأسبوعية أو درس تعلمته:</label>
+        <textarea class="form-textarea" id="journalNotesInput" placeholder="اكتب تأملاتك، ملاحظاتك، أو أهداف الأسبوع القادم هنا..."></textarea>
+      </div>
+      <button class="form-input" style="background:var(--primary-gradient); color:#000; font-weight:bold; border:none; cursor:pointer;" onclick="saveWeeklyJournal()">حفظ التأمل الأسبوعي 💾</button>
+    </div>
+  </div>
+
+  <!-- Focus Soundscapes Modal -->
+  <div class="full-modal" id="soundscapesModal">
+    <div class="modal-nav">
+      <button class="icon-btn" onclick="closeModal('soundscapesModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+      <span style="font-weight: 800; font-size: 1.1rem;">أصوات التركيز المحيطية 🎧</span>
+      <div></div>
+    </div>
+    <div class="modal-content">
+      <p style="color:var(--text-secondary); font-size:0.85rem; text-align:center; margin-bottom:12px;">اختر الصوت المحيطي المفضل لديك للتركيز أثناء الإنجاز:</p>
+      
+      <div class="soundscape-grid">
+        <div class="soundscape-card" id="soundRain" onclick="toggleSoundscape('rain')">
+          <span class="material-symbols-outlined soundscape-icon">water_drop</span>
+          <span style="font-weight:bold;">صوت المطر 🌧️</span>
+        </div>
+        <div class="soundscape-card" id="soundWaves" onclick="toggleSoundscape('waves')">
+          <span class="material-symbols-outlined soundscape-icon">waves</span>
+          <span style="font-weight:bold;">أمواج البحر 🌊</span>
+        </div>
+        <div class="soundscape-card" id="soundCafe" onclick="toggleSoundscape('cafe')">
+          <span class="material-symbols-outlined soundscape-icon">local_cafe</span>
+          <span style="font-weight:bold;">أجواء كافيه ☕</span>
+        </div>
+        <div class="soundscape-card" id="soundWhite" onclick="toggleSoundscape('white')">
+          <span class="material-symbols-outlined soundscape-icon">graphic_eq</span>
+          <span style="font-weight:bold;">ضوضاء بيضاء 📻</span>
+        </div>
+      </div>
+
+      <div style="margin-top:24px; text-align:center;">
+        <button class="form-input" style="background:var(--accent-pink-bg); color:var(--accent-pink); font-weight:bold; cursor:pointer;" onclick="stopAllSoundscapes()">إيقاف كافة الأصوات ⏹️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Habit Tracker Modal -->
+  <div class="full-modal" id="habitModal">
+    <div class="modal-nav">
+      <button class="icon-btn" onclick="closeModal('habitModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+      <span style="font-weight: 800; font-size: 1.1rem;">تتبع العادات اليومية (Habits)</span>
+      <div></div>
+    </div>
+    <div class="modal-content">
+      <div class="form-group">
+        <label class="form-label">أضف عادة جديدة للتتبع:</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" class="form-input" id="newHabitInput" placeholder="مثال: قراءة 20 صفحة...">
+          <button class="dialog-btn primary" onclick="addHabit()">إضافة</button>
+        </div>
+      </div>
+      <div id="habitListContainer" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- Pomodoro Modal -->
+  <div class="full-modal" id="pomodoroModal">
+    <div class="modal-nav">
+      <button class="icon-btn" onclick="closeModal('pomodoroModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+      <span style="font-weight: 800; font-size: 1.1rem;">مؤقت التركيز (Pomodoro)</span>
+      <div></div>
+    </div>
+    <div class="modal-content" style="text-align:center;">
+      <div class="pomo-btn-group" style="margin-top: 10px;">
+        <button class="pomo-preset-btn active" onclick="setPomodoroTime(25, this)">25 دقيقة</button>
+        <button class="pomo-preset-btn" onclick="setPomodoroTime(15, this)">15 دقيقة</button>
+        <button class="pomo-preset-btn" onclick="setPomodoroTime(5, this)">5 دقائق (راحة)</button>
+      </div>
+
+      <div class="pomo-display" id="pomoTime">25:00</div>
+
+      <div class="pomo-btn-group" style="margin-top: 20px;">
+        <button class="form-input" style="width:auto; background:var(--primary-gradient); color:#000; font-weight:bold; cursor:pointer; padding: 12px 24px;" id="pomoToggleBtn" onclick="togglePomodoro()">إبدأ التركيز ⏱️</button>
+        <button class="form-input" style="width:auto; background:var(--surface-card); color:var(--text-color); cursor:pointer; padding: 12px 20px;" onclick="resetPomodoro()">إعادة ضبط</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dialog: New Category -->
+  <div class="custom-dialog-overlay" id="categoryDialogOverlay">
+    <div class="custom-dialog-card">
+      <div class="dialog-title">إضافة قائمة جديدة</div>
+      <input type="text" class="form-input" id="newCategoryInput" placeholder="اسم القائمة الجديدة..." style="margin-top: 6px;">
+      <div class="dialog-btn-row">
+        <button class="dialog-btn" onclick="closeNewCategoryDialog()">إلغاء</button>
+        <button class="dialog-btn primary" onclick="submitNewCategory()">إضافة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Modal: Single Task Modal -->
+  <div class="full-modal" id="newTaskModal">
+    <div class="modal-nav">
+      <button class="icon-btn" onclick="closeModal('newTaskModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+      <span style="font-weight: 800; font-size: 1.1rem;">مهمة جديدة</span>
+      <button class="icon-btn" onclick="saveNewTaskModal()"><span class="material-symbols-outlined" style="color:var(--primary-color);">check</span></button>
+    </div>
+    <div class="modal-content">
+      <div class="form-group">
+        <label class="form-label">اسم المهمة:</label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="text" class="form-input" id="modalTaskTitle" placeholder="ما الذي تريد إنجازه؟">
+          <button class="icon-btn" onclick="startSpeechModal()"><span class="material-symbols-outlined">mic</span></button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">التنبيه عند التواجد في مكان معين (Geofencing 📍):</label>
+        <input type="text" class="form-input" id="modalTaskLocation" placeholder="مثال: صيدلية الدواء، المنزل، العمل...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">مستوى الطاقة المطلوبة للمهمة (Energy Mapping ⚡):</label>
+        <select class="form-select" id="modalTaskEnergy">
+          <option value="high">طاقة عالية 🚀 (تحتاج تركيز شديد)</option>
+          <option value="medium" selected>طاقة متوسطة ☕ (مهمة عادية)</option>
+          <option value="low">طاقة منخفضة 🌙 (خفيفة وبسيطة)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <label class="form-label" style="margin:0;">المهام الفرعية:</label>
+          <button class="dialog-btn primary" style="font-size:0.75rem; padding:4px 8px;" onclick="aiBreakdownTask()">✨ تفكيك بالذكاء الاصطناعي</button>
+        </div>
+        <textarea class="form-textarea" id="modalSubtasksInput" placeholder="مهمة فرعية 1&#10;مهمة فرعية 2"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">درجة الأولوية:</label>
+        <select class="form-select" id="modalTaskPriority">
+          <option value="low">منخفضة 🟢</option>
+          <option value="medium" selected>متوسطة 🟡</option>
+          <option value="high">عالية 🔴</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><label class="form-label">موعد الاستحقاق:</label><input type="date" class="form-input" id="modalTaskDueDate"></div>
+        <div><label class="form-label">وقت التذكير:</label><input type="time" class="form-input" id="modalTaskDueTime" value="09:00"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">الملاحظات:</label>
+        <textarea class="form-textarea" id="modalTaskNotes" placeholder="أضف ملاحظاتك هنا..."></textarea>
+      </div>
+    </div>
+    <button class="save-fab" onclick="saveNewTaskModal()"><span class="material-symbols-outlined">check</span> حفظ المهمة</button>
+  </div>
+
+  <!-- Multi Add Modal -->
+  <div class="full-modal" id="multiAddModal">
+    <div class="modal-nav">
+      <button class="icon-btn" onclick="closeModal('multiAddModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+      <span style="font-weight: 800; font-size: 1.1rem;">إضافة متعددة</span>
+      <button class="icon-btn" onclick="saveMultiTasks()"><span class="material-symbols-outlined" style="color:var(--primary-color);">check</span></button>
+    </div>
+    <div class="modal-content">
+      <div class="form-group">
+        <label class="form-label">أدخل عدة مهام (كل سطر مهمة):</label>
+        <textarea class="form-textarea" id="multiTasksInput" style="height:260px;" placeholder="المهمة الأولـى&#10;المهمة الثانيـة"></textarea>
+      </div>
+    </div>
+    <button class="save-fab" onclick="saveMultiTasks()"><span class="material-symbols-outlined">check</span> حفظ الكل</button>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('smplan_tasks_v40')) || [];
+    let categories = JSON.parse(localStorage.getItem('smplan_cats_v40')) || ['غير المنجزة', 'اليوم', 'بدون وقت', 'منجزة'];
+    let habits = JSON.parse(localStorage.getItem('smplan_habits_v40')) || [{id: '1', title: 'قراءة 15 دقيقة', count: 3}];
+    let weeklyJournal = localStorage.getItem('smplan_journal_v40') || '';
+    let savedEmail = localStorage.getItem('smplan_user_email') || '';
+    let userXP = parseInt(localStorage.getItem('smplan_xp')) || 0;
+    let currentCategory = 'غير المنجزة';
+    let currentEnergyFilter = 'all';
+
+    let pomoTimer = null;
+    let pomoSeconds = 1500;
+    let isPomoRunning = false;
+
+    let audioCtx = null;
+    let soundNodes = [];
+
+    const quotes = [
+      "بطل! خطوة جديدة نحو هدفك 🚀",
+      "إنجاز رائع! استمر يا وحش 💥",
+      "عاش! مهمة كمان تم إنجازها بنجاح 🎯",
+      "إنتاجية ممتازة! أنت على الطريق الصحيح ⭐",
+      "أداء مميز جداً! واصل الإبداع 🔥"
+    ];
+
+    function saveToStorage() {
+      localStorage.setItem('smplan_tasks_v40', JSON.stringify(tasks));
+      localStorage.setItem('smplan_cats_v40', JSON.stringify(categories));
+      localStorage.setItem('smplan_habits_v40', JSON.stringify(habits));
+      localStorage.setItem('smplan_journal_v40', weeklyJournal);
+      localStorage.setItem('smplan_xp', userXP);
+      localStorage.setItem('smplan_theme', document.body.dataset.theme || 'light');
+      document.getElementById('userXP').innerText = userXP + ' XP';
+      renderTasks();
+      updateTopProgress();
+      if (typeof cloudApplyingRemote === 'undefined' || !cloudApplyingRemote) scheduleCloudSync();
+    }
+
+    function triggerConfetti() {
+      if (typeof confetti === 'function') confetti({ particleCount: 75, spread: 60, origin: { y: 0.85 } });
+      userXP += 15;
+      localStorage.setItem('smplan_xp', String(userXP));
+      if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
+      showToast();
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toastMsg');
+      t.innerText = msg || quotes[Math.floor(Math.random() * quotes.length)];
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    // Direct Device File Image Picker Logic
+    function handleDeviceImageSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const base64Img = evt.target.result;
+          setWallpaper(base64Img);
+          showToast("🖼️ تم اختيار وتعريف خلفية من هاتفـك بنجاح!");
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Gmail Backup and Sync Handler
+    function syncWithGmailAccount() {
+      const email = document.getElementById('userEmailInput').value.trim();
+      if (!email) {
+        alert("يرجى إدخال بريدك الإلكتروني لربطه بالنسخة.");
+        return;
+      }
+      localStorage.setItem('smplan_user_email', email);
+      const backupData = {
+        email: email,
+        timestamp: new Date().toISOString(),
+        tasks: tasks,
+        categories: categories,
+        habits: habits,
+        weeklyJournal: weeklyJournal,
+        userXP: userXP
+      };
+      
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `SmPlan_Backup_${email.split('@')[0]}.json`;
+      a.click();
+
+      showToast(`☁️ تم ربط وتنزيل النسخة الاحتياطية لـ ${email}`);
+      closeModal('googleSyncModal');
+    }
+
+    function restoreFromGmailFile(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          try {
+            const data = JSON.parse(evt.target.result);
+            if (data.tasks) {
+              tasks = data.tasks;
+              categories = data.categories || categories;
+              habits = data.habits || habits;
+              weeklyJournal = data.weeklyJournal || '';
+              userXP = data.userXP || 0;
+              saveToStorage();
+              showToast("🔄 تم استرجاع كافة بياناتك من الملف بنجاح!");
+              closeModal('googleSyncModal');
+            } else {
+              alert("ملف غير صالح.");
+            }
+          } catch(err) {
+            alert("خطأ في قراءة ملف النسخة الاحتياطية.");
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    function changeEnergyFilter(val) {
+      currentEnergyFilter = val;
+      renderTasks();
+    }
+
+    function openWeeklyJournalModal() {
+      closeAllDropdowns();
+      const doneCount = tasks.filter(t => t.completed).length;
+      const totalCount = tasks.length;
+      const rate = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+      
+      document.getElementById('journalStatsText').innerText = `أنجزت ${doneCount} من أصل ${totalCount} مهمة بنسبة نجاح ${rate}%. استمر في هذا الأداء الرائع! ⭐`;
+      document.getElementById('journalNotesInput').value = weeklyJournal;
+      document.getElementById('weeklyJournalModal').classList.add('active');
+    }
+
+    function saveWeeklyJournal() {
+      weeklyJournal = document.getElementById('journalNotesInput').value;
+      localStorage.setItem('smplan_journal_v40', weeklyJournal);
+      scheduleCloudSync();
+      showToast("📖 تم حفظ مفكرة التأمل الأسبوعي بنجاح!");
+      closeModal('weeklyJournalModal');
+    }
+
+    function openSoundscapesModal() { closeAllDropdowns(); document.getElementById('soundscapesModal').classList.add('active'); }
+
+    function toggleSoundscape(type) {
+      stopAllSoundscapes();
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      const card = document.getElementById('sound' + type.charAt(0).toUpperCase() + type.slice(1));
+      card.classList.add('playing');
+
+      const bufferSize = audioCtx.sampleRate * 2;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+
+      const whiteNoise = audioCtx.createBufferSource();
+      whiteNoise.buffer = noiseBuffer;
+      whiteNoise.loop = true;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = type === 'rain' ? 'lowpass' : (type === 'waves' ? 'bandpass' : 'lowshelf');
+      filter.frequency.value = type === 'rain' ? 800 : (type === 'waves' ? 400 : 1200);
+
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.15;
+
+      whiteNoise.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      whiteNoise.start();
+      soundNodes.push(whiteNoise);
+      showToast("🎧 جاري تشغيل الأصوات المحيطية للتركيز...");
+    }
+
+    function stopAllSoundscapes() {
+      soundNodes.forEach(node => { try { node.stop(); } catch(e){} });
+      soundNodes = [];
+      document.querySelectorAll('.soundscape-card').forEach(c => c.classList.remove('playing'));
+    }
+
+    function setWallpaper(url) {
+      if (url) {
+        document.body.style.setProperty('--bg-image', `url('${url}')`);
+        localStorage.setItem('smplan_bg_url', url);
+      } else {
+        document.body.style.setProperty('--bg-image', 'none');
+        localStorage.removeItem('smplan_bg_url');
+      }
+      closeModal('wallpapersModal');
+    }
+
+    function applyCustomWallpaper() {
+      const url = document.getElementById('customBgUrlInput').value.trim();
+      if (url) {
+        setWallpaper(url);
+        document.getElementById('customBgUrlInput').value = '';
+      } else {
+        alert("الرجاء إدخال رابط صالح للصورة.");
+      }
+    }
+
+    function changeBgDimming(val) {
+      document.body.style.setProperty('--bg-overlay-opacity', val / 100);
+    }
+
+    function toggleSearchBox(e) {
+      if (e) e.stopPropagation();
+      const sb = document.getElementById('searchBox');
+      sb.classList.toggle('active');
+      if (sb.classList.contains('active')) document.getElementById('searchInput').focus();
+    }
+
+    function aiBreakdownTask() {
+      const title = document.getElementById('modalTaskTitle').value.trim();
+      if (!title) { alert("أدخل اسم المهمة أولاً ليقوم الذكاء الاصطناعي بتفكيكها!"); return; }
+      const generated = `تحليل متطلبات "${title}"\nتجهيز الأدوات والمراجع الأساسية\nالبدء بالخطوة الأولى والتنفيذ\nالمراجعة النهائية والتسليم`;
+      document.getElementById('modalSubtasksInput').value = generated;
+      showToast("✨ تم توليد المهام الفرعية بنجاح!");
+    }
+
+    function openHabitTrackerModal() {
+      closeAllDropdowns();
+      renderHabits();
+      document.getElementById('habitModal').classList.add('active');
+    }
+
+    function addHabit() {
+      const val = document.getElementById('newHabitInput').value.trim();
+      if (val) {
+        habits.push({ id: Date.now().toString(), title: val, count: 0, logs: [] });
+        document.getElementById('newHabitInput').value = '';
+        saveToStorage();
+        renderHabits();
+      }
+    }
+
+    function incrementHabit(id) {
+      const h = habits.find(x => x.id === id);
+      if (h) { h.logs = Array.isArray(h.logs) ? h.logs : []; const today = localDateKey(); if (h.logs.includes(today)) { showToast('تم تسجيل إنجاز هذه العادة اليوم بالفعل'); return; } h.logs.push(today); h.count = (h.count || 0) + 1; saveToStorage(); renderHabits(); triggerConfetti(); }
+    }
+
+    function renderHabits() {
+      const container = document.getElementById('habitListContainer');
+      container.innerHTML = '';
+      if (habits.length === 0) {
+        container.innerHTML = `<div style="color:var(--text-secondary); text-align:center;">لا توجد عادات مضافة بعد</div>`;
+        return;
+      }
+      habits.forEach(h => {
+        container.innerHTML += `
+          <div style="background:var(--surface-card); border:1px solid var(--border-color); padding:12px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:bold; font-size:0.95rem;">${h.title}</div>
+              <div style="font-size:0.8rem;color:var(--primary-color);margin-top:2px;">تم الإنجاز: ${h.count} مرة 🔥 · الاستمرارية: ${habitStreak(h)} يوم</div>
+            </div>
+            <button class="dialog-btn primary" onclick="incrementHabit('${h.id}')">+ إنجاز اليوم</button>
+          </div>
+        `;
+      });
+    }
+
+    function openPomodoroModal() { closeAllDropdowns(); document.getElementById('pomodoroModal').classList.add('active'); }
+    
+    function setPomodoroTime(minutes, btn) {
+      clearInterval(pomoTimer);
+      isPomoRunning = false;
+      pomoSeconds = minutes * 60;
+      updatePomoDisplay();
+      document.getElementById('pomoToggleBtn').innerText = "إبدأ التركيز ⏱️";
+      document.querySelectorAll('.pomo-preset-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    function updatePomoDisplay() {
+      const m = Math.floor(pomoSeconds / 60).toString().padStart(2, '0');
+      const s = (pomoSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('pomoTime').innerText = `${m}:${s}`;
+    }
+
+    function togglePomodoro() {
+      const btn = document.getElementById('pomoToggleBtn');
+      if (!isPomoRunning) {
+        isPomoRunning = true;
+        btn.innerText = "إيقاف مؤقت ⏸️";
+        pomoTimer = setInterval(() => {
+          if (pomoSeconds > 0) {
+            pomoSeconds--;
+            updatePomoDisplay();
+          } else {
+            clearInterval(pomoTimer);
+            isPomoRunning = false;
+            btn.innerText = "إبدأ التركيز ⏱️";
+            showToast("🎉 انتهت جلسة التركيز بنجاح!");
+            triggerConfetti();
+          }
+        }, 1000);
+      } else {
+        clearInterval(pomoTimer);
+        isPomoRunning = false;
+        btn.innerText = "استئناف ▶️";
+      }
+    }
+
+    function resetPomodoro() {
+      clearInterval(pomoTimer);
+      isPomoRunning = false;
+      pomoSeconds = 1500;
+      updatePomoDisplay();
+      document.getElementById('pomoToggleBtn').innerText = "إبدأ التركيز ⏱️";
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('taskListMain');
+      const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+      
+      let filtered = tasks.filter(t => {
+        const matchesSearch = t.title.toLowerCase().includes(searchQuery);
+        if (!matchesSearch) return false;
+
+        if (currentEnergyFilter !== 'all' && t.energy !== currentEnergyFilter) return false;
+
+        if (currentCategory === 'منجزة') return t.completed;
+        if (currentCategory === 'غير المنجزة') return !t.completed;
+        if (currentCategory === 'بدون وقت') return !t.date && !t.completed;
+        if (currentCategory === 'اليوم') return t.date === new Date().toISOString().split('T')[0] && !t.completed;
+        return t.category === currentCategory && !t.completed;
+      });
+
+      filtered.sort((a, b) => {
+        const pMap = { high: 3, medium: 2, low: 1 };
+        return (pMap[b.priority] || 2) - (pMap[a.priority] || 2);
+      });
+
+      document.getElementById('currentCategoryLabel').innerText = currentCategory;
+      document.getElementById('categoryCount').innerText = filtered.length;
+      document.getElementById('userXP').innerText = userXP + ' XP';
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color: var(--text-secondary); margin-top: 60px; font-weight:600;">✨ لا توجد مهام حالياً</div>`;
+        renderCategoryMenu();
+        return;
+      }
+
+      container.innerHTML = '';
+      filtered.forEach(task => {
+        const card = document.createElement('div');
+        card.className = `task-card priority-${task.priority || 'medium'} ${task.completed ? 'completed' : ''}`;
+        
+        let subtasksHtml = renderSubtasksTree(task.id, task.subtasks || [], []);
+        const dueHtml = task.dueDate ? `<div class="due-chip">📅 ${task.dueDate}${task.dueTime ? ' · '+task.dueTime : ''}</div>` : '';
+
+        card.innerHTML = `
+          <div class="task-main-row">
+            <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${task.id}')">
+            <div class="task-content">
+              <div class="task-title">${escapeHtml(task.title)}</div>
+              ${task.location ? `<div class="task-location-tag"><span class="material-symbols-outlined" style="font-size:14px;">location_on</span> ${escapeHtml(task.location)}</div>` : ''}
+              ${task.notes ? `<div class="task-notes-text">${escapeHtml(task.notes)}</div>` : ''}
+              ${dueHtml}
+              ${subtasksHtml}
+            </div>
+            <button class="icon-btn" onclick="deleteTask('${task.id}')"><span class="material-symbols-outlined" style="color:var(--text-secondary); font-size:18px;">delete</span></button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      renderCategoryMenu();
+    }
+
+    function saveNewTaskModal() {
+      const title = document.getElementById('modalTaskTitle').value.trim();
+      const location = document.getElementById('modalTaskLocation').value.trim();
+      const energy = document.getElementById('modalTaskEnergy').value;
+      const priority = document.getElementById('modalTaskPriority').value;
+      const notes = document.getElementById('modalTaskNotes').value.trim();
+      const dueDate = document.getElementById('modalTaskDueDate').value;
+      const dueTime = document.getElementById('modalTaskDueTime').value;
+      const rawSubs = document.getElementById('modalSubtasksInput').value;
+
+      if (title) {
+        let subs = [];
+        if (rawSubs.trim()) {
+          rawSubs.split('\n').forEach(s => {
+            if (s.trim()) subs.push({ id: Date.now().toString() + Math.random(), title: s.trim(), completed: false });
+          });
+        }
+        const newTask = { id: Date.now().toString(), title, location, energy, priority, notes, dueDate, dueTime, completed: false, subtasks: subs, category: currentCategory };
+        tasks.unshift(newTask);
+        if (dueDate && dueTime) scheduleTaskReminder(newTask);
+        closeModal('newTaskModal');
+        saveToStorage();
+      }
+    }
+
+    function renderCategoryMenu() {
+      const container = document.getElementById('dynamicCategories');
+      container.innerHTML = '';
+      categories.forEach(cat => {
+        const count = tasks.filter(t => t.category === cat && !t.completed).length;
+        container.innerHTML += `<div class="dropdown-item" onclick="selectCategory('${cat}')"><span>${cat}</span><span class="task-count-badge">${count}</span></div>`;
+      });
+    }
+
+    function toggleTask(id) {
+      const t = tasks.find(x => x.id === id);
+      if (t) { t.completed = !t.completed; if (t.completed) triggerConfetti(); saveToStorage(); }
+    }
+
+    function toggleSubtask(taskId, subId) {
+      const t = tasks.find(x => x.id === taskId);
+      if (t && t.subtasks) {
+        const sub = t.subtasks.find(s => s.id === subId);
+        if (sub) { sub.completed = !sub.completed; if (sub.completed) triggerConfetti(); saveToStorage(); }
+      }
+    }
+
+    function deleteTask(id) { tasks = tasks.filter(x => x.id !== id); saveToStorage(); }
+
+    function handleQuickTask(e) {
+      if (e.key === 'Enter') {
+        const val = e.target.value.trim();
+        if (val) {
+          tasks.unshift({ id: Date.now().toString(), title: val, priority: 'medium', energy: 'medium', completed: false, category: currentCategory });
+          e.target.value = '';
+          saveToStorage();
+        }
+      }
+    }
+
+    function handlePopupTask(e) {
+      if (e.key === 'Enter') {
+        const val = e.target.value.trim();
+        if (val) {
+          tasks.unshift({ id: Date.now().toString(), title: val, completed: false, category: currentCategory });
+          e.target.value = '';
+          togglePopupWindow();
+          saveToStorage();
+        }
+      }
+    }
+
+    function saveMultiTasks() {
+      const raw = document.getElementById('multiTasksInput').value;
+      raw.split('\n').forEach(l => {
+        if (l.trim()) {
+          tasks.unshift({ id: Date.now().toString() + Math.random(), title: l.trim(), completed: false, priority: 'medium', energy: 'medium', category: currentCategory });
+        }
+      });
+      document.getElementById('multiTasksInput').value = '';
+      closeModal('multiAddModal');
+      saveToStorage();
+    }
+
+    function openNewCategoryDialog() {
+      closeAllDropdowns();
+      document.getElementById('newCategoryInput').value = '';
+      document.getElementById('categoryDialogOverlay').classList.add('active');
+      document.getElementById('newCategoryInput').focus();
+    }
+
+    function closeNewCategoryDialog() { document.getElementById('categoryDialogOverlay').classList.remove('active'); }
+
+    function submitNewCategory() {
+      const val = document.getElementById('newCategoryInput').value.trim();
+      if (val && !categories.includes(val)) {
+        categories.push(val);
+        currentCategory = val;
+        closeNewCategoryDialog();
+        saveToStorage();
+      }
+    }
+
+    function openWallpapersModal() { closeAllDropdowns(); document.getElementById('wallpapersModal').classList.add('active'); }
+    
+    function openGoogleSyncModal() { 
+      closeAllDropdowns(); 
+      if (savedEmail) document.getElementById('userEmailInput').value = savedEmail;
+      document.getElementById('googleSyncModal').classList.add('active'); 
+    }
+
+    function deleteCurrentCategory() {
+      closeAllDropdowns();
+      if (['غير المنجزة', 'اليوم', 'بدون وقت', 'منجزة'].includes(currentCategory)) {
+        alert("لا يمكن حذف القوائم الافتراضية.");
+        return;
+      }
+      if (confirm(`حذف قائمة "${currentCategory}"؟`)) {
+        categories = categories.filter(c => c !== currentCategory);
+        tasks = tasks.filter(t => t.category !== currentCategory);
+        currentCategory = 'غير المنجزة';
+        saveToStorage();
+      }
+    }
+
+    function closeAllDropdowns(e) {
+      document.getElementById('optionsMenu').classList.remove('active');
+      document.getElementById('categoryMenu').classList.remove('active');
+    }
+
+    function togglePopupWindow(e) { 
+      if (e) e.stopPropagation(); 
+      document.getElementById('popupWindow').classList.toggle('active'); 
+    }
+
+    function toggleCategoryMenu(e) { 
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('categoryMenu');
+      const isActive = menu.classList.contains('active');
+      closeAllDropdowns();
+      if (!isActive) menu.classList.add('active');
+    }
+
+    function toggleOptionsMenu(e) { 
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('optionsMenu');
+      const isActive = menu.classList.contains('active');
+      closeAllDropdowns();
+      if (!isActive) menu.classList.add('active');
+    }
+    
+    function selectCategory(cat) { 
+      currentCategory = cat; 
+      closeAllDropdowns();
+      renderTasks();
+    }
+
+    function openNewTaskModal() { 
+      document.getElementById('modalTaskTitle').value = '';
+      document.getElementById('modalTaskLocation').value = '';
+      document.getElementById('modalTaskNotes').value = '';
+      document.getElementById('modalSubtasksInput').value = '';
+      document.getElementById('modalTaskDueDate').value = '';
+      document.getElementById('modalTaskDueTime').value = '09:00';
+      document.getElementById('newTaskModal').classList.add('active'); 
+    }
+    function openMultiAddModal() { closeAllDropdowns(); document.getElementById('multiAddModal').classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function startSpeech() {
+      if ('webkitSpeechRecognition' in window) {
+        const rec = new webkitSpeechRecognition(); rec.lang = 'ar-SA';
+        rec.onresult = (e) => { document.getElementById('quickTaskInput').value = e.results[0][0].transcript; };
+        rec.start();
+      }
+    }
+
+    function startSpeechModal() {
+      if ('webkitSpeechRecognition' in window) {
+        const rec = new webkitSpeechRecognition(); rec.lang = 'ar-SA';
+        rec.onresult = (e) => { document.getElementById('modalTaskTitle').value = e.results[0][0].transcript; };
+        rec.start();
+      }
+    }
+
+    function exportData() {
+      closeAllDropdowns();
+      const json = JSON.stringify(buildBackupPayload(), null, 2);
+      const filename = `SmPlan_Premium_Backup_${localDateKey()}.json`;
+      if (window.SmPlanNative && SmPlanNative.saveBackup) { SmPlanNative.saveBackup(json, filename); return; }
+      const blob = new Blob([json], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+    }
+
+    function clearAll() {
+      closeAllDropdowns();
+      if (confirm("هل أنت تأكد من مسح كافة المهام؟")) { tasks = []; saveToStorage(); }
+    }
+
+
+    // ===== SmPlan Premium extensions (backward-compatible) =====
+    const SMPLAN_SCHEMA_VERSION = 2;
+    let cloudUser = null;
+    let cloudSyncTimer = null;
+    let cloudApplyingRemote = false;
+    function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function localDateKey(d=new Date()) { const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+    function habitStreak(h) { const logs=(h.logs||[]).slice().sort().reverse(); let cursor=new Date(); if(!logs.includes(localDateKey(cursor))) cursor.setDate(cursor.getDate()-1); let n=0; while(logs.includes(localDateKey(cursor))){n++;cursor.setDate(cursor.getDate()-1);} return n; }
+    function setTheme(name) { document.body.dataset.theme=name; localStorage.setItem('smplan_theme',name); showToast('تم تطبيق الثيم'); }
+    function updateTopProgress() { const done=tasks.filter(t=>t.completed).length,total=tasks.length; const pct=total?Math.round(done/total*100):0; const bar=document.getElementById('progressBar'); if(bar)bar.style.width=pct+'%'; }
+    function openDashboard(){ closeAllDropdowns(); renderDashboard(); document.getElementById('dashboardModal').classList.add('active'); }
+    function renderDashboard(){
+      const el=document.getElementById('dashboardContent'); if(!el)return;
+      const total=tasks.length,done=tasks.filter(t=>t.completed).length,pending=total-done,overdue=tasks.filter(t=>!t.completed&&t.dueDate&&t.dueDate<localDateKey()).length;
+      const pct=total?Math.round(done/total*100):0,habitDone=habits.filter(h=>(h.logs||[]).includes(localDateKey())).length;
+      const week=[]; for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const k=localDateKey(d);week.push({label:['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'][d.getDay()],count:tasks.filter(t=>t.completedAt&&String(t.completedAt).slice(0,10)===k).length});}
+      const max=Math.max(1,...week.map(x=>x.count));
+      const byPriority=[['عالية',tasks.filter(t=>!t.completed&&t.priority==='high').length],['متوسطة',tasks.filter(t=>!t.completed&&t.priority==='medium').length],['منخفضة',tasks.filter(t=>!t.completed&&t.priority==='low').length]];
+      el.innerHTML=`<div class="premium-dashboard"><div class="metric-card"><div class="metric-label">إجمالي المهام</div><div class="metric-value">${total}</div></div><div class="metric-card"><div class="metric-label">المهام المكتملة</div><div class="metric-value">${done}</div></div><div class="metric-card"><div class="metric-label">المهام المتبقية</div><div class="metric-value">${pending}</div></div><div class="metric-card"><div class="metric-label">المهام المتأخرة</div><div class="metric-value" style="color:${overdue?'#d94b65':'var(--primary-color)'}">${overdue}</div></div></div>
+      <div class="metric-card"><div style="display:flex;justify-content:space-between;font-weight:800"><span>إنجاز المهام</span><span style="color:var(--primary-color)">${pct}%</span></div><div class="dash-progress"><span style="width:${pct}%"></span></div></div>
+      <div class="premium-section-title">نشاط الإنجاز خلال آخر 7 أيام</div><div class="metric-card">${week.map(x=>`<div class="chart-row"><span style="width:35px">${x.label}</span><div class="chart-track"><div class="chart-fill" style="width:${Math.round(x.count/max*100)}%"></div></div><b>${x.count}</b></div>`).join('')}</div>
+      <div class="premium-section-title">توزيع الأولويات المتبقية</div><div class="metric-card">${byPriority.map(x=>`<div class="chart-row"><span style="width:55px">${x[0]}</span><div class="chart-track"><div class="chart-fill" style="width:${pending?Math.round(x[1]/pending*100):0}%"></div></div><b>${x[1]}</b></div>`).join('')}</div>
+      <div class="premium-section-title">العادات</div><div class="premium-dashboard"><div class="metric-card"><div class="metric-label">عدد العادات</div><div class="metric-value">${habits.length}</div></div><div class="metric-card"><div class="metric-label">إنجازات اليوم</div><div class="metric-value">${habitDone}/${habits.length}</div></div></div>
+      <div class="metric-card"><div class="metric-label">رصيد الإنجاز</div><div class="metric-value">${userXP} XP</div><div style="color:var(--text-secondary);font-size:.78rem">كل إنجاز يضيف نقاطًا إلى رصيدك.</div></div>`;
+    }
+    function renderSubtasksTree(taskId, list, path) {
+      if(!Array.isArray(list)||!list.length)return '';
+      return `<div class="subtask-tree">${list.map((sub,i)=>{const p=[...path,i];return `<div><div class="subtask-line"><input type="checkbox" style="width:15px;height:15px;accent-color:var(--primary-color)" ${sub.completed?'checked':''} onchange="toggleSubtaskPath('${taskId}','${p.join('.')}')"><span class="subtask-name" style="${sub.completed?'text-decoration:line-through;color:var(--text-secondary)':''}">${escapeHtml(sub.title)}</span><button class="subtask-add" onclick="addNestedSubtask('${taskId}','${p.join('.')}')">+ فرعية</button></div>${renderSubtasksTree(taskId,sub.children||[],p)}</div>`}).join('')}</div>`;
+    }
+    function getSubtaskAtPath(task,path){let arr=task.subtasks||[],node=null;for(const n of path){node=arr[Number(n)];if(!node)return null;arr=node.children||[];}return node;}
+    function toggleSubtaskPath(taskId,pathText){const task=tasks.find(t=>t.id===taskId);if(!task)return;const path=pathText.split('.').map(Number);const node=getSubtaskAtPath(task,path);if(node){node.completed=!node.completed;if(node.completed)triggerConfetti();saveToStorage();}}
+    function addNestedSubtask(taskId,pathText){const title=prompt('اسم المهمة الفرعية:');if(!title||!title.trim())return;const task=tasks.find(t=>t.id===taskId);if(!task)return;const node=getSubtaskAtPath(task,pathText.split('.').map(Number));if(!node)return;node.children=Array.isArray(node.children)?node.children:[];node.children.push({id:Date.now().toString(),title:title.trim(),completed:false,children:[]});saveToStorage();}
+    function buildBackupPayload(){return {schemaVersion:SMPLAN_SCHEMA_VERSION,exportedAt:new Date().toISOString(),tasks,categories,habits,weeklyJournal,userXP,theme:document.body.dataset.theme||'light'};}
+    function scheduleTaskReminder(task){const when=new Date(`${task.dueDate}T${task.dueTime||'09:00'}:00`).getTime(),delay=when-Date.now();if(delay<=0)return;const title='موعد المهمة: '+task.title,body='حان موعد إنجاز مهمتك في SmPlan';try{if(window.SmPlanNative&&SmPlanNative.scheduleNotification)SmPlanNative.scheduleNotification(String(delay),title,body,task.id);else if('Notification'in window&&Notification.permission==='granted')setTimeout(()=>new Notification(title,{body}),delay);}catch(e){console.warn('Reminder scheduling failed',e);}}
+    function scheduleCloudSync(){if(!cloudUser||cloudApplyingRemote||!window.firebase||!firebase.firestore)return;clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>cloudSyncNow(true),1800);}
+    function cloudConfigured(){return !!(window.SMPLAN_FIREBASE_CONFIG&&window.SMPLAN_FIREBASE_CONFIG.apiKey&&window.SMPLAN_FIREBASE_CONFIG.projectId&&!String(window.SMPLAN_FIREBASE_CONFIG.apiKey).includes('PASTE_'));}
+    function cloudStatus(message){const el=document.getElementById('cloudStatus');if(el)el.textContent=message;}
+    async function cloudInit(){try{if(!cloudConfigured()){cloudStatus('المزامنة السحابية تحتاج إعداد Firebase. الحفظ المحلي والنسخ الاحتياطي يعملان بشكل طبيعي.');return;}if(!firebase.apps.length)firebase.initializeApp(window.SMPLAN_FIREBASE_CONFIG);firebase.auth().onAuthStateChanged(async user=>{cloudUser=user||null;if(user){cloudStatus('تم تسجيل الدخول: '+user.email+' — جاري تحميل بيانات السحابة...');await cloudPull();}else cloudStatus('غير مسجل الدخول إلى السحابة.');});}catch(e){cloudStatus('تعذر تهيئة Firebase: '+e.message);}}
+    async function cloudSignIn(mode){if(!cloudConfigured()){cloudStatus('أضف إعدادات Firebase في firebase-config.js أولًا.');return;}const email=document.getElementById('userEmailInput').value.trim(),password=document.getElementById('cloudPasswordInput').value;if(!email||password.length<6){cloudStatus('أدخل بريدًا صحيحًا وكلمة مرور من 6 أحرف على الأقل.');return;}try{if(!firebase.apps.length)firebase.initializeApp(window.SMPLAN_FIREBASE_CONFIG);if(mode==='signup')await firebase.auth().createUserWithEmailAndPassword(email,password);else await firebase.auth().signInWithEmailAndPassword(email,password);}catch(e){cloudStatus('تعذر تسجيل الدخول: '+(e.code||e.message));}}
+    async function cloudPull(){if(!cloudUser)return;try{const ref=firebase.firestore().collection('smplanUsers').doc(cloudUser.uid),snap=await ref.get();if(!snap.exists){await cloudSyncNow(true);cloudStatus('تم إنشاء النسخة السحابية لأول مرة.');return;}const remote=snap.data().payload;if(!remote)return;const localHasData=tasks.length||habits.length||weeklyJournal;if(localHasData&&!confirm('وجدنا بيانات محفوظة على السحابة. هل تريد استبدال بيانات هذا الجهاز بها؟ اختر إلغاء للاحتفاظ ببيانات الجهاز.')){cloudStatus('تم الاحتفاظ ببيانات الجهاز. يمكنك اختيار «مزامنة الآن» لرفعها.');return;}cloudApplyingRemote=true;tasks=remote.tasks||[];categories=remote.categories||categories;habits=remote.habits||[];weeklyJournal=remote.weeklyJournal||'';userXP=remote.userXP||0;if(remote.theme)setTheme(remote.theme);localStorage.setItem('smplan_tasks_v40',JSON.stringify(tasks));localStorage.setItem('smplan_cats_v40',JSON.stringify(categories));localStorage.setItem('smplan_habits_v40',JSON.stringify(habits));localStorage.setItem('smplan_journal_v40',weeklyJournal);localStorage.setItem('smplan_xp',String(userXP));renderTasks();renderHabits();cloudApplyingRemote=false;cloudStatus('تم تنزيل بيانات السحابة بنجاح.');}catch(e){cloudApplyingRemote=false;cloudStatus('فشل تحميل البيانات: '+e.message);}}
+    async function cloudSyncNow(silent=false){if(!cloudUser){if(!silent)cloudStatus('سجّل الدخول أولًا.');return;}try{await firebase.firestore().collection('smplanUsers').doc(cloudUser.uid).set({payload:buildBackupPayload(),updatedAt:firebase.firestore.FieldValue.serverTimestamp(),email:cloudUser.email||''});if(!silent)cloudStatus('تمت مزامنة بياناتك بنجاح.');}catch(e){if(!silent)cloudStatus('فشلت المزامنة: '+e.message);}}
+    async function cloudSignOut(){try{if(firebase.apps.length)await firebase.auth().signOut();cloudUser=null;cloudStatus('تم تسجيل الخروج من السحابة.');}catch(e){cloudStatus(e.message);}}
+    // Keep completion timestamps for honest weekly analytics.
+    const originalToggleTask=toggleTask;
+    toggleTask=function(id){const t=tasks.find(x=>x.id===id);if(t){t.completed=!t.completed;t.completedAt=t.completed?new Date().toISOString():null;if(t.completed)triggerConfetti();saveToStorage();}};
+    // Import supports both the old v40 backup and the expanded schema.
+    const originalRestore=restoreFromGmailFile;
+    restoreFromGmailFile=function(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(evt){try{const data=JSON.parse(evt.target.result);if(!Array.isArray(data.tasks))throw new Error('invalid');tasks=data.tasks;categories=Array.isArray(data.categories)?data.categories:categories;habits=Array.isArray(data.habits)?data.habits:habits;weeklyJournal=data.weeklyJournal||'';userXP=Number(data.userXP)||0;if(data.theme)setTheme(data.theme);saveToStorage();renderHabits();showToast('تم استرجاع النسخة الاحتياطية');closeModal('googleSyncModal');}catch(err){alert('ملف النسخة الاحتياطية غير صالح أو تالف.');}};reader.readAsText(file);e.target.value='';};
+    const storedTheme=localStorage.getItem('smplan_theme')||'light';setTheme(storedTheme);
+    window.addEventListener('online',()=>{if(cloudUser)cloudSyncNow(true);});
+    cloudInit();
+
+    const savedBg = localStorage.getItem('smplan_bg_url');
+    if (savedBg) document.body.style.setProperty('--bg-image', `url('${savedBg}')`);
+
+    renderTasks();
+    updateTopProgress();
+  </script>
+</body>
+</html>
